@@ -1,3 +1,8 @@
+> **Org Status**: 🟢 Active
+> **Cloudflare**: N/A
+> **Last Audited**: 2026-04-28
+---
+
 ### Hi there 👋
 
 <!--
