@@ -1,0 +1,50 @@
+name: Security Posture Check
+
+on:
+  workflow_call:
+
+jobs:
+  conftest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Conftest
+        run: |
+          wget https://github.com/open-policy-agent/conftest/releases/download/v0.45.0/conftest_0.45.0_Linux_x86_64.tar.gz
+          tar xzf conftest_0.45.0_Linux_x86_64.tar.gz
+          sudo mv conftest /usr/local/bin
+          rm conftest_0.45.0_Linux_x86_64.tar.gz
+
+      - name: Checkout standard policies
+        uses: actions/checkout@v4
+        with:
+          repository: your-org/garywu # Assuming standard is a repo, but for now we'll just pull the path
+          path: garywu-standard
+          # In a real monorepo this might already be present, but this is a reusable workflow
+
+      - name: Check Wrangler Configs (.jsonc)
+        run: |
+          # Find all wrangler.jsonc files and check them against policies
+          FILES=$(find . -not -path "*/node_modules/*" -name "wrangler.jsonc")
+          if [ -n "$FILES" ]; then
+            echo "$FILES" | xargs conftest test --policy garywu-standard/garywu/standard/policies/wrangler-config.rego
+          else
+            echo "No wrangler.jsonc found."
+          fi
+
+      - name: Check for forbidden .toml files
+        run: |
+          TOML_FILES=$(find . -not -path "*/node_modules/*" -name "wrangler.toml")
+          if [ -n "$TOML_FILES" ]; then
+            echo "::error::wrangler.toml files are forbidden by doctrine (RFC-035). Migrate to wrangler.jsonc."
+            exit 1
+          fi
+
+      - name: Check GHA Workflows
+        run: |
+          WORKFLOWS=$(find .github/workflows -name "*.yml" || true)
+          if [ -n "$WORKFLOWS" ]; then
+            echo "$WORKFLOWS" | xargs conftest test --policy garywu-standard/garywu/standard/policies/gha-secrets.rego
+          fi
